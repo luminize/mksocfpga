@@ -49,6 +49,7 @@ module gpio_adr_decoder_reg(
     input                               write_reg,
     input                               read_reg,
     input   [AddrWidth-1:2]             busaddress,
+    input   [MuxLedWidth-1:0]           leds_sig[NumGPIO-1:0],
     input   [BusWidth-1:0]              busdata_in,
     input   [MuxGPIOIOWidth-1:0]        iodatafromhm3[NumGPIO-1:0],
     input   [BusWidth-1:0]              busdata_fromhm2,
@@ -74,6 +75,7 @@ parameter   AddrWidth       = 16;
 parameter   BusWidth        = 32;
 parameter   GPIOWidth       = 36;
 parameter   MuxGPIOIOWidth  = 36;
+parameter   MuxLedWidth     = 0;
 parameter   NumIOAddrReg    = 6;
 parameter   NumGPIO         = 2;
 
@@ -326,30 +328,59 @@ endgenerate
 //	wire [GPIOWidth-1:0] gpio1_out_data = {gpio1_data_fromhm3[GPIOWidth-1:5],4'bz,charge};
 //	wire [GPIOWidth-1:0] gpio1_input_data;
 //	assign gpio_input_data[1] = {gpio1_input_data[GPIOWidth-1:5],sense,charge};
-generate if (Capsense >=1) begin
-    bidir_io #(.IOWidth(GPIOWidth * NumGPIO),.PortNumWidth(PortNumWidth)) bidir_io_inst
-    (
-        .clk(reg_clk),
-        .portselnum(portnumsel),
-        .out_ena({out_ena[1],out_ena[0]}) ,	// input  out_ena_sig
-        .od({od[1],od[0]}) ,	// input  od_sig
-        .out_data({iodatafromhm3[1][GPIOWidth-1:5],4'bz,charge, iodatafromhm3[0]}) ,  // input [IOIOWidth-1:0] out_data_sig
-        .gpioport({gpioport[1],gpioport[0]}) ,	// inout [IOIOWidth-1:0] gpioport_sig
-        .data_from_gpio({gpio_input_data[1],gpio_input_data[0]}) 	// output [IOIOWidth-1:0] read_data_sig
-    );
+generate if (Capsense >=1 ) begin
+    if(MuxLedWidth == 2) begin
+        bidir_io #(.IOWidth(GPIOWidth * NumGPIO),.PortNumWidth(PortNumWidth)) bidir_io_inst
+        (
+            .clk(reg_clk),
+            .portselnum(portnumsel),
+            .out_ena({out_ena[1],out_ena[0]}) ,	// input  out_ena_sig
+            .od({od[1],od[0]}) ,	// input  od_sig
+            .out_data({iodatafromhm3[1][MuxGPIOIOWidth-1:18],leds_sig[1][1],iodatafromhm3[1][16:2],leds_sig[0][1],iodatafromhm3[1][0],
+                       iodatafromhm3[0][MuxGPIOIOWidth-1:18],leds_sig[0][1],iodatafromhm3[0][16:2],leds_sig[0][1],iodatafromhm3[0][0]}) ,
+            .gpioport({gpioport[1],gpioport[0]}) ,	// inout [IOIOWidth-1:0] gpioport_sig
+            .data_from_gpio({gpio_input_data[1],gpio_input_data[0]}) 	// output [IOIOWidth-1:0] read_data_sig
+        );
     end
     else begin
-    bidir_io #(.IOWidth(GPIOWidth * NumGPIO),.PortNumWidth(PortNumWidth)) bidir_io_inst
-    (
-        .clk(reg_clk),
-        .portselnum(portnumsel),
-        .out_ena({out_ena[1],out_ena[0]}) ,	// input  out_ena_sig
-        .od({od[1],od[0]}) ,	// input  od_sig
-        .out_data({iodatafromhm3[1], iodatafromhm3[0]}) ,  // input [IOIOWidth-1:0] out_data_sig
-        .gpioport({gpioport[1],gpioport[0]}) ,	// inout [IOIOWidth-1:0] gpioport_sig
-        .data_from_gpio({gpio_input_data[1],gpio_input_data[0]}) 	// output [IOIOWidth-1:0] read_data_sig
-    );
+        bidir_io #(.IOWidth(GPIOWidth * NumGPIO),.PortNumWidth(PortNumWidth)) bidir_io_inst
+        (
+            .clk(reg_clk),
+            .portselnum(portnumsel),
+            .out_ena({out_ena[1],out_ena[0]}) ,	// input  out_ena_sig
+            .od({od[1],od[0]}) ,	// input  od_sig
+            .out_data({iodatafromhm3[1][GPIOWidth-1:5],4'bz,charge, iodatafromhm3[0]}) ,  // input [IOIOWidth-1:0] out_data_sig
+            .gpioport({gpioport[1],gpioport[0]}) ,	// inout [IOIOWidth-1:0] gpioport_sig
+            .data_from_gpio({gpio_input_data[1],gpio_input_data[0]}) 	// output [IOIOWidth-1:0] read_data_sig
+        );
     end
+end
+else begin
+    if(MuxLedWidth == 2) begin
+        bidir_io #(.IOWidth(GPIOWidth * NumGPIO),.PortNumWidth(PortNumWidth)) bidir_io_inst
+        (
+            .clk(reg_clk),
+            .portselnum(portnumsel),
+            .out_ena({out_ena[1],out_ena[0]}) ,	// input  out_ena_sig
+            .od({od[1],od[0]}) ,	// input  od_sig
+            .out_data({iodatafromhm3[1], iodatafromhm3[0]}) ,  // input [IOIOWidth-1:0] out_data_sig
+            .gpioport({gpioport[1],gpioport[0]}) ,	// inout [IOIOWidth-1:0] gpioport_sig
+            .data_from_gpio({gpio_input_data[1],gpio_input_data[0]}) 	// output [IOIOWidth-1:0] read_data_sig
+        );
+    end
+    else begin
+        bidir_io #(.IOWidth(GPIOWidth * NumGPIO),.PortNumWidth(PortNumWidth)) bidir_io_inst
+        (
+            .clk(reg_clk),
+            .portselnum(portnumsel),
+            .out_ena({out_ena[1],out_ena[0]}) ,	// input  out_ena_sig
+            .od({od[1],od[0]}) ,	// input  od_sig
+            .out_data({iodatafromhm3[1], iodatafromhm3[0]}) ,  // input [IOIOWidth-1:0] out_data_sig
+            .gpioport({gpioport[1],gpioport[0]}) ,	// inout [IOIOWidth-1:0] gpioport_sig
+            .data_from_gpio({gpio_input_data[1],gpio_input_data[0]}) 	// output [IOIOWidth-1:0] read_data_sig
+        );
+    end
+end
 endgenerate
     // Read:
 

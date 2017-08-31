@@ -15,6 +15,8 @@ use work.IDROMConst.all;
 use work.oneofndecode.all;
 use work.NumberOfModules.all;
 use work.MaxInputPinsPerModule.all;
+use work.InputPinsPerModule.all;
+use work.log2.all;
 
 entity MakeIOPorts is
 	generic (
@@ -59,7 +61,9 @@ entity MakeIOPorts is
 		UseWatchDog: boolean;
 		UseDemandModeDMA: boolean;
 		UseIRQlogic: boolean;
-		LEDCount: integer);
+		LEDCount: integer;
+		SSerials: integer;
+		MaxUARTsPerSSerial: integer);
 	Port (
 -- 		inbus : in std_logic_vector(BusWidth -1 downto 0) := (others => 'Z');
 		ibustop : in std_logic_vector(BusWidth -1 downto 0);
@@ -75,7 +79,7 @@ entity MakeIOPorts is
 		IOBitsCorein :  out std_logic_vector(IOWidth-1 downto 0);
 		CoreDataOut :  in std_logic_vector(IOWidth-1 downto 0) := (others => '0');
 --		iobitstop :  inout std_logic_vector(IOWidth-1 downto 0) := (others => '0');
---		AltData :  inout std_logic_vector(IOWidth-1 downto 0) := (others => '0');
+		AltData :  inout std_logic_vector(IOWidth-1 downto 0) := (others => '0');
 		clklow : in std_logic;
 		clkmed : in std_logic;
 		clkhigh : in std_logic;
@@ -140,6 +144,14 @@ architecture dataflow of MakeIOPorts is
 
 --- LED related signals
 	signal LoadLEDS : std_logic;
+
+--- SSerials related signals
+type  SSerialType is array(0 to 3) of integer;
+constant UARTSPerSSerial: SSerialType :=(
+(InputPinsPerModule(ThePinDesc,SSerialTag,0)),
+(InputPinsPerModule(ThePinDesc,SSerialTag,1)),
+(InputPinsPerModule(ThePinDesc,SSerialTag,2)),
+(InputPinsPerModule(ThePinDesc,SSerialTag,3)));
 
 --- Demand mode DMA related signals
 	signal LoadDMDMAMode: std_logic;
@@ -506,6 +518,141 @@ architecture dataflow of MakeIOPorts is
 		clear => '0',
 		dout => LEDS
 		);
+
+	makesserialmod:  if SSerials >0  generate
+	signal LoadSSerialCommand: std_logic_vector(SSerials -1 downto 0);
+	signal ReadSSerialCommand: std_logic_vector(SSerials -1 downto 0);
+	signal LoadSSerialData: std_logic_vector(SSerials -1 downto 0);
+	signal ReadSSerialData: std_logic_vector(SSerials -1 downto 0);
+	signal LoadSSerialRAM0: std_logic_vector(SSerials -1 downto 0);
+	signal ReadSSerialRAM0: std_logic_vector(SSerials -1 downto 0);
+	signal LoadSSerialRAM1: std_logic_vector(SSerials -1 downto 0);
+	signal ReadSSerialRAM1: std_logic_vector(SSerials -1 downto 0);
+	signal LoadSSerialRAM2: std_logic_vector(SSerials -1 downto 0);
+	signal ReadSSerialRAM2: std_logic_vector(SSerials -1 downto 0);
+	signal LoadSSerialRAM3: std_logic_vector(SSerials -1 downto 0);
+	signal ReadSSerialRAM3: std_logic_vector(SSerials -1 downto 0);
+	type  SSerialRXType is array(SSerials-1 downto 0) of std_logic_vector(MaxUARTsPerSSerial-1 downto 0);
+	signal SSerialRX: SSerialRXType;
+	type  SSerialTXType is array(SSerials-1 downto 0) of std_logic_vector(MaxUARTsPerSSerial-1 downto 0);
+	signal SSerialTX: SSerialTXType;
+	type  SSerialTXEnType is array(SSerials-1 downto 0) of std_logic_vector(MaxUARTsPerSSerial-1 downto 0);
+	signal SSerialTXEn: SSerialTXEnType;
+	signal SSerialTestBits: std_logic_vector(SSerials -1 downto 0);
+	signal SSerialCommandSel: std_logic;
+	signal SSerialDataSel: std_logic;
+	signal SSerialRAMSel0: std_logic;
+	signal SSerialRAMSel1: std_logic;
+	signal SSerialRAMSel2: std_logic;
+	signal SSerialRAMSel3: std_logic;
+	begin
+		makesserials: for i in 0 to SSerials -1 generate
+			asserial: entity work.sserialwa
+			generic map (
+				Ports => UARTSPerSSerial(i),
+				InterfaceRegs => UARTSPerSSerial(i),	-- must be power of 2
+				BaseClock => ClockMed,
+				NeedCRC8 => true
+			)
+			port map(
+				clk  => clklow,
+				clkmed => clkmed,
+				ibus  => ibustop,
+				obus  => obustop,
+				hloadcommand  => LoadSSerialCommand(i),
+				hreadcommand  => ReadSSerialCommand(i),
+				hloaddata  => LoadSSerialData(i),
+				hreaddata  => ReadSSerialData(i),
+				regaddr  =>  Adr(log2(UARTSPerSSerial(i))+1 downto 2),
+				hloadregs0  => LoadSSerialRAM0(i),
+				hreadregs0  => ReadSSerialRAM0(i),
+				hloadregs1  => LoadSSerialRAM1(i),
+				hreadregs1  => ReadSSerialRAM1(i),
+				hloadregs2  => LoadSSerialRAM2(i),
+				hreadregs2  => ReadSSerialRAM2(i),
+				hloadregs3  => LoadSSerialRAM3(i),
+				hreadregs3  => ReadSSerialRAM3(i),
+				rxserial  =>  SSerialRX(i)(UARTSPerSSerial(i) -1 downto 0),
+				txserial  =>  SSerialTX(i)(UARTSPerSSerial(i) -1 downto 0),
+				txenable  =>  SSerialTXEn(i)(UARTSPerSSerial(i) -1 downto 0),
+				testbit  =>   SSerialTestBits(i)
+				);
+		end generate;
+
+		SSerialDecodeProcess : process (Adr,Readstb,writestb,SSerialCommandSel,SSerialDataSel,
+		                                SSerialRAMSel0,SSerialRAMSel1,SSerialRAMSel2,SSerialRAMSel3)
+		begin
+			if Adr(15 downto 8) = SSerialCommandAddr then
+				SSerialCommandSel <= '1';
+			else
+				SSerialCommandSel <= '0';
+			end if;
+			if Adr(15 downto 8) = SSerialDataAddr then
+				SSerialDataSel <= '1';
+			else
+				SSerialDataSel <= '0';
+			end if;
+			if Adr(15 downto 8) = SSerialRAMAddr0 then
+				SSerialRAMSel0 <= '1';
+			else
+				SSerialRAMSel0 <= '0';
+			end if;
+			if Adr(15 downto 8) = SSerialRAMAddr1 then
+				SSerialRAMSel1 <= '1';
+			else
+				SSerialRAMSel1 <= '0';
+			end if;
+			if Adr(15 downto 8) = SSerialRAMAddr2 then
+				SSerialRAMSel2 <= '1';
+			else
+				SSerialRAMSel2 <= '0';
+			end if;
+			if Adr(15 downto 8) = SSerialRAMAddr3 then
+				SSerialRAMSel3 <= '1';
+			else
+				SSerialRAMSel3 <= '0';
+			end if;
+			LoadSSerialCommand <= OneOfNDecode(SSerials,SSerialCommandSel,writestb,Adr(7 downto 6));
+			ReadSSerialCommand <= OneOfNDecode(SSerials,SSerialCommandSel,Readstb,Adr(7 downto 6));
+			LoadSSerialData <= OneOfNDecode(SSerials,SSerialDataSel,writestb,Adr(7 downto 6));
+			ReadSSerialData <= OneOfNDecode(SSerials,SSerialDataSel,Readstb,Adr(7 downto 6));
+			LoadSSerialRam0 <= OneOfNDecode(SSerials,SSerialRAMSel0,writestb,Adr(7 downto 6)); 	-- 16 addresses per SSerial RAM max, this implies 4 max sserials
+			ReadSSerialRam0 <= OneOfNDecode(SSerials,SSerialRAMSel0,Readstb,Adr(7 downto 6)); 	-- 16 addresses per SSerial RAM max, this implies 4 max sserials
+			LoadSSerialRam1 <= OneOfNDecode(SSerials,SSerialRAMSel1,writestb,Adr(7 downto 6)); 	-- 16 addresses per SSerial RAM max, this implies 4 max sserials
+			ReadSSerialRam1 <= OneOfNDecode(SSerials,SSerialRAMSel1,Readstb,Adr(7 downto 6)); 	-- 16 addresses per SSerial RAM max
+			LoadSSerialRam2 <= OneOfNDecode(SSerials,SSerialRAMSel2,writestb,Adr(7 downto 6)); 	-- 16 addresses per SSerial RAM max
+			ReadSSerialRam2 <= OneOfNDecode(SSerials,SSerialRAMSel2,Readstb,Adr(7 downto 6)); 	-- 16 addresses per SSerial RAM max
+			LoadSSerialRam3 <= OneOfNDecode(SSerials,SSerialRAMSel3,writestb,Adr(7 downto 6)); 	-- 16 addresses per SSerial RAM max
+			ReadSSerialRam3 <= OneOfNDecode(SSerials,SSerialRAMSel3,Readstb,Adr(7 downto 6)); 	-- 16 addresses per SSerial RAM max
+        report "Max UARTS per sserial " & integer'image(MaxUARTSPerSSerial);
+        report "UARTS per sserial 0 " &  integer 'image(UARTSPerSSerial(0));
+        report "UARTS per sserial 1 " &  integer 'image(UARTSPerSSerial(1));
+        report "UARTS per sserial 2 " &  integer 'image(UARTSPerSSerial(2));
+        report "UARTS per sserial 3 " &  integer 'image(UARTSPerSSerial(3));
+
+
+		end process SSerialDecodeProcess;
+
+		DoSSerialPins: process(SSerialTX, SSerialTXEn, SSerialTestBits, iobitsintop)
+		begin
+			for i in 0 to IOWidth -1 loop				-- loop through all the external I/O pins
+				if ThePinDesc(i)(15 downto 8) = SSerialTag then 	-- this hideous masking of pinnumbers/vs pintype is why they should be separate bytes, maybe IDROM type 4...
+					if (ThePinDesc(i)(7 downto 0) and x"F0") = x"80" then 	-- txouts match 8X
+						AltData(i) <=   SSerialTX(conv_integer(ThePinDesc(i)(23 downto 16)))(conv_integer(ThePinDesc(i)(3 downto 0))-1);	-- 16 max ports
+					end if;
+					if (ThePinDesc(i)(7 downto 0) and x"F0") = x"90" then 	-- txens match 9X
+						AltData(i) <= not SSerialTXEn(conv_integer(ThePinDesc(i)(23 downto 16)))(conv_integer(ThePinDesc(i)(3 downto 0))-1); 	-- 16 max ports
+					end if;
+					if (ThePinDesc(i)(7 downto 0) and x"F0") = x"00" then 	-- rxins match 0X
+						SSerialRX(conv_integer(ThePinDesc(i)(23 downto 16)))(conv_integer(ThePinDesc(i)(3 downto 0))-1) <= iobitsintop(i);		-- 16 max ports
+					end if;
+					if ThePinDesc(i)(7 downto 0) = SSerialTestPin then
+						AltData(i) <= SSerialTestBits(i);
+					end if;
+				end if;
+			end loop;
+		end process;
+	end generate;
 
 --
 -- 	makedaqfifomod:  if DAQFIFOs >0  generate

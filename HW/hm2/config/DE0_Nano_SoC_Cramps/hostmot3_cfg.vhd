@@ -148,7 +148,7 @@ begin
 --			intirq <= intirq_sig;
 --			iobitsouttop <= iobitsouttop_sig;
 			iobitsintop_sig <= iobitsintop;
---			leds <= leds_sig;
+			leds <= leds_sig;
 		end if;
 	end process;
 

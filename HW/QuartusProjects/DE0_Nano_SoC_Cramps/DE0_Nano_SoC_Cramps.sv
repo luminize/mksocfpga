@@ -320,6 +320,10 @@ generate for(ig=0;ig<NumGPIO;ig=ig+1) begin : iosigloop
 end
 endgenerate
 
+	assign io_leds_sig[0] = hm2_leds_sig[1:0];
+	assign io_leds_sig[1] = hm2_leds_sig[3:2];
+
+
 //assign LED[7:6] = ~hm2_leds_sig[1:0];
 
 gpio_adr_decoder_reg gpio_adr_decoder_reg_inst
@@ -330,7 +334,7 @@ gpio_adr_decoder_reg gpio_adr_decoder_reg_inst
 	.chip_sel(hm_chipsel[0]) ,	// input  data_ready_sig
 	.write_reg(hm_write) ,	// input  data_ready_sig
 	.read_reg(hm_read) ,	// input  data_ready_sig
-//	.leds_sig(io_leds_sig) ,	// input  data_ready_sig
+	.leds_sig(io_leds_sig) ,	// input  data_ready_sig
 	.busaddress(hm_address) ,	// input [AddrWidth-1:0] address_sig
 	.busdata_in(hm_datai) ,	// input [BusWidth-1:0] data_in_sig
 	.iodatafromhm3 ( io_bitsout_sig ),
@@ -355,7 +359,7 @@ defparam gpio_adr_decoder_reg_inst.BusWidth = BusWidth;
 defparam gpio_adr_decoder_reg_inst.GPIOWidth = GPIOWidth;
 defparam gpio_adr_decoder_reg_inst.MuxGPIOIOWidth = MuxGPIOIOWidth;
 defparam gpio_adr_decoder_reg_inst.NumIOAddrReg = NumIOAddrReg;
-//defparam gpio_adr_decoder_reg_inst.MuxLedWidth = MuxLedWidth;
+defparam gpio_adr_decoder_reg_inst.MuxLedWidth = MuxLedWidth;
 defparam gpio_adr_decoder_reg_inst.NumGPIO = NumGPIO;
 defparam gpio_adr_decoder_reg_inst.Capsense = Capsense;
 defparam gpio_adr_decoder_reg_inst.NumSense = 4;
@@ -380,10 +384,10 @@ HostMot3_cfg HostMot3_inst
 //	.dreq(dreq_sig) ,	// output  dreq_sig
 //	.demandmode(demandmode_sig) ,	// output  demandmode_sig
 	.iobitsouttop(hm2_bitsout_sig) ,	// inout [IOWidth-1:0] 				--iobits => IOBITS,-- external I/O bits
-	.iobitsintop(hm2_bitsin_sig) 	// inout [IOWidth-1:0] 				--iobits => IOBITS,-- external I/O bits
+	.iobitsintop(hm2_bitsin_sig), 	// inout [IOWidth-1:0] 				--iobits => IOBITS,-- external I/O bits
 //	.liobits(liobits_sig) ,	// inout [lIOWidth-1:0] 			--liobits_sig
 //	.rates(rates_sig) ,	// output [4:0] rates_sig
-//	.leds(hm2_leds_sig) 	// output [ledcount-1:0] leds_sig		--leds => LEDS
+	.leds(hm2_leds_sig) 	// output [ledcount-1:0] leds_sig		--leds => LEDS
 );
 
 // defparam HostMot3_inst.ThePinDesc = PinDesc;
