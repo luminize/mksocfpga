@@ -80,7 +80,7 @@ package PIN_7I76_7I76_7I76_7I76 is
         (SSerialTag,        x"00",  ClockLowTag,    x"04",  SSerialCommandAddr&PadT,    SSerialNumRegs,         x"10",  SSerialMPBitMask),
         (LEDTag,            x"00",  ClockLowTag,    x"01",  LEDAddr&PadT,               LEDNumRegs,             x"00",  LEDMPBitMask),
         (FWIDTag,           x"00",  ClockLowTag,    x"01",  FWIDAddr&PadT,              FWIDNumRegs,            x"00",  FWIDMPBitMask),
-        (NullTag,           x"00",  NullTag,        x"00",  NullAddr&PadT,              x"00",                  x"00",  x"00000000"),
+        (NANOADCTag,        x"00",  ClockLowTag,    x"08",  NANOADCAddr&PadT,           NANOADCNumRegs,         x"00",  NANOADCBitMask),
         (NullTag,           x"00",  NullTag,        x"00",  NullAddr&PadT,              x"00",                  x"00",  x"00000000"),
         (NullTag,           x"00",  NullTag,        x"00",  NullAddr&PadT,              x"00",                  x"00",  x"00000000"),
         (NullTag,           x"00",  NullTag,        x"00",  NullAddr&PadT,              x"00",                  x"00",  x"00000000"),
